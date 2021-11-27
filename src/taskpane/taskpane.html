@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+
+    <div class="d-flex flex-column justify-content-center w-100 h-100">
+        <div class="d-flex flex-column justify-content-center align-items-center">
+            <h1 class="fw-light text-white m-0">Welcome to ExcelAssist</h1>
+        </div>
+    </div>
+
+    <div class="form__group field">
+        <input type="text" class="form__field" placeholder="command" name="command" id='command' required />
+        <label for="example" class="form__label">Write your command here...</label>
+        <button type="submit" id='go'>Go</button>
+    </div>
+
+    <div>
+        <button id="speech" class="btn"><i class="fa fa-microphone"></i></button>
+        <p class="instructions" id="instructions">Or press the mic to start speaking.</p>
+    </div>
+
+    <div>
+        <button type="button" class="help" id='help'>Help</button>
+    </div>
+    
+    <head>
+        <meta charset="UTF-8" />
+        <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <title>Contoso Task Pane Add-in</title>
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.0/dist/css/bootstrap.min.css">
+        <!-- Office JavaScript API -->
+        <script type="text/javascript" src="https://appsforoffice.microsoft.com/lib/1.1/hosted/office.js"></script>
+
+        <!-- For more information on Fluent UI, visit https://developer.microsoft.com/fluentui#/. -->
+        <link rel="stylesheet" href="https://static2.sharepointonline.com/files/fabric/office-ui-fabric-core/9.6.1/css/fabric.min.css"/>
+
+        <!-- Template styles -->
+        <link href="taskpane.css" rel="stylesheet" type="text/css" />
+    </head>
+
+</html>

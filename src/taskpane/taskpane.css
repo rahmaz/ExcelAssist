@@ -1,0 +1,149 @@
+html {
+  height:100%;
+}
+
+body {
+  background: linear-gradient(-45deg, #1D6F42, #222222);
+  background-size: 400% 400%;
+  animation: gradient 50s ease infinite;
+  height: 100vh;
+}
+
+h1 {
+  font-family: 'Poppins', sans-serif;
+  font-size: 25px;
+  letter-spacing: 2px;
+  color: #fff;
+  top: 23%;
+  left: 50%;
+  margin-right: -50%;
+  position: absolute;
+  transform: translate(-50%, -50%);
+}
+
+.content {
+  box-sizing:border-box;
+  left:50%;
+  right:0%;
+  position:fixed;
+  text-align:center;
+  top: 20%;
+  transform:translate(-50%, -50%);
+}
+
+.form__group {
+  position: absolute;
+  padding: 15px 0 0;
+  margin-top: 10px;
+  width: 80%;
+}
+.form__field {
+  font-family: inherit;
+  width: 79%;
+  border: 0;
+  border-bottom: 2px solid #fff;
+  outline: 0;
+  font-size: 20px;
+  color: #fff;
+  padding: 7px 0;
+  background: transparent;
+  transition: border-color 0.2s;
+}
+.form__field::placeholder {
+  color: transparent;
+}
+.form__field:placeholder-shown ~ .form__label {
+  font-size: 15px;
+  cursor: text;
+  top: 20px;
+}
+.form__label {
+  position: absolute;
+  top: 0;
+  display: block;
+  transition: 0.2s;
+  font-size: 15px;
+  color: #fff;
+  opacity:30%;
+}
+
+/* reset input */
+.form__field:required, .form__field:invalid {
+  box-shadow: none;
+}
+/* demo */
+body {
+  font-family: 'Poppins', sans-serif;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  font-size: 1.5rem;
+  background-color: transparent;
+}
+button {
+  background-color: transparent;
+  border-color: white;
+  border-radius: 100%;
+  width: 50px;
+  height: 50px;
+  color: white;
+  font-size: 20px;
+  padding: 5px 5px;
+  cursor: pointer;
+}
+.help {
+  background-color: transparent;
+  border-color: white;
+  border-radius: 5px;
+  color: white;
+  font-size: 20px;
+  padding:5px 5px;
+  cursor: pointer;
+  top: 90%;
+  left: 50%;
+  margin-right: -50%;
+  position: absolute;
+  transform: translate(-50%, -50%);
+  width: 100px;
+  height: 40px;
+}
+.btn {
+  border-radius: 100%;
+  border-color: transparent;
+  width: 70px;
+  height: 70px;
+  font-size: 50px;
+  color: #fff;
+  background: transparent;
+  top: 67%;
+  left: 50%;
+  margin-right: -50%;
+  position: absolute;
+  transform: translate(-50%, -50%);
+  padding:5px 5px;
+}
+.instructions {
+  display: block;
+  top: 78%;
+  left: 50%;
+  margin-right: -50%;
+  position: absolute;
+  transform: translate(-50%, -50%);
+  font-size: 15px;
+  color: #fff;
+  opacity:30%;
+}
+
+@keyframes gradient {
+  0% {
+      background-position: 0% 50%;
+  }
+  50% {
+      background-position: 100% 50%;
+  }
+  100% {
+      background-position: 0% 50%;
+  }
+}
