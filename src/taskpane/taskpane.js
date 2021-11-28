@@ -49,6 +49,36 @@ Office.onReady((info) => {
   }
 });
 
+// Office.context.document.getSelectedDataAsync("table", function (asyncResult) {
+//   if (asyncResult.status == "failed") {
+//     console.log("Action failed with error: ", asyncResult.error.message);
+//   } else {
+//     console.log("Headers: " + asyncResult.value.headers + " Rows: " + asyncResult.value.rows);
+//   }
+// });
+
+function convertLetterToNumber(str) {
+  "use strict";
+  var out = 0;
+  var len = str.length;
+  var pos = len;
+  while (--pos > -1) {
+    out += (str.charCodeAt(pos) - 64) * Math.pow(26, len - 1 - pos);
+  }
+  out = out - 1;
+  console.log("letter to number", str, out);
+  return out;
+}
+
+function getColNumber(clmName) {
+  if (isNaN(+clmName)) {
+    //TO DO get column header after getting active table
+    clmName = clmName.toUpperCase();
+    clmName = convertLetterToNumber(clmName);
+  } else clmName = clmName - 1;
+  return clmName;
+}
+
 export async function executeCommand() {
   const commandVal = document.getElementById("command").value; //get the user input text
   const commandLow = commandVal.toLowerCase(); //LowerCase
@@ -88,11 +118,8 @@ export async function executeCommand() {
 }
 
 export async function sortCommand(parsedCommand) {
-  //TO DO: Handle case where it's not a Table
-  console.log("parsedCommand:", parsedCommand);
   //var myTable = "test"; //TO DO: get the active table name from the worksheet if it exists, or get table name from command if user mentioned it
   var commandLength = parsedCommand.length;
-  console.log("commandLength:", commandLength);
   var RC = 1; //Row? 0 or Column? 1
   var clmName;
   var rowName;
@@ -106,16 +133,15 @@ export async function sortCommand(parsedCommand) {
   //Get Column Name
   if (RC == 1) {
     for (var i = 0; i < commandLength; i++) {
-      if (parsedCommand[i] == "column") {
+      if (parsedCommand[i].includes("col")) {
         clmName = parsedCommand[i + 1];
-        console.log("clmName:", clmName);
-        //TO DO: handle case where column name is mentioned before the word column
-        //TO DO: handle all types of arguments
+        //convert column Letter or Number to number
+        clmName = getColNumber(clmName);
       }
     }
   } /* Get Row Name */ else {
     for (var r = 0; r < commandLength; r++) {
-      if (parsedCommand[r] == "row") {
+      if (parsedCommand[r].includes("row")) {
         rowName = parsedCommand[i + 1];
         console.log("rowName:", rowName);
         //TO DO: handle case where row name is mentioned before the word row
@@ -127,7 +153,7 @@ export async function sortCommand(parsedCommand) {
   var OrderAsc = true; //true is ascending
   for (var j = 0; j < commandLength; j++) {
     /* Not sure if includes() will work */
-    if (parsedCommand[j].includes("descending") == true) {
+    if (parsedCommand[j].includes("des")) {
       OrderAsc = false;
       //TO DO: handle spelling mistakes
     }
@@ -141,7 +167,7 @@ export async function sortCommand(parsedCommand) {
     var columnRange = myTable.getDataBodyRange();
     columnRange.sort.apply([
       {
-        key: 1, //change this to variable
+        key: Number(clmName), //change this to variable
         //TO DO: what is myColumn is the name?
         ascending: OrderAsc,
       },
