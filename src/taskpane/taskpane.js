@@ -79,19 +79,52 @@ function getColNumber(clmName) {
   return clmName;
 }
 
+// export async function getTable() {
+//   Excel.run(function (context) {
+//     var range = context.workbook.getSelectedRange();
+//     range.load("address");
+//     var tables = context.workbook.tables.load("name");
+//     context.sync();
+//     var found = false;
+//     for (var i = 0; i < tables.items.length; i++) {
+//       var table = tables.items[i];
+//       var intersectionRange = table.getRange().getIntersection(selection).load("address");
+//       context.sync();
+//       found = true;
+//       console.log(
+//         `Intersection found with table "${table.name}". ` + `Intersection range: "${intersectionRange.address}".`
+//       );
+//     }
+//     return context.sync().then(function () {
+//       console.log(`The address of the selected range is "${range.address}"`, table);
+//     });
+//   });
+// }
+
 export async function executeCommand() {
+  //getTable();
   const commandVal = document.getElementById("command").value; //get the user input text
-  const commandLow = commandVal.toLowerCase(); //LowerCase
-  var parsedCommand = commandLow.split(" "); //split the commands into words
-  var verb = parsedCommand[0]; //get the first word to know which command to execute
+
+  //Text processing
+  const commandLow = commandVal.toLowerCase(); //Lower Case everything
+  var parsedCommand = commandLow.split(" "); //split the command by space
+
+  //determine the keyword, get the first word to know which command to execute
+  var verb = parsedCommand[0];
   // var verbnext = parsedCommand[1]; //if next word is needed ex: move screen
   // var verblast = parsedCommand[parsedCommand.length]; //get the last word in case verb is last
+
   // depending on the verb, execute one of the following functions
-  // Group 1
-  if (verb == "sort") sortCommand(parsedCommand);
-  else if (verb == "swap") swapCommand(parsedCommand);
-  //Group 2
+  //converts range to table
+  if (verb == "convert" || verb == "create") convertcmd(parsedCommand);
+  //sorts table using one of the columns, can be called by name letter or number
+  else if (verb == "sort") sortCommand(parsedCommand);
+  //colors cells, columns, rows
+  else if (parsedCommand.includes("fill") || parsedCommand.includes("highlight") || parsedCommand.includes("color"))
+    fillcmd(parsedCommand);
+  //clears data from the wanted range
   else if (verb == "clear") clearCmd(parsedCommand);
+  else if (verb == "swap") swapCommand(parsedCommand);
   else if (verb == "delete") deleteCmd(parsedCommand);
   else if (verb == "copy") copyCmd(parsedCommand);
   else if (verb == "highlight") highlightCmd(parsedCommand);
@@ -117,58 +150,76 @@ export async function executeCommand() {
   else if (verb == "insert") insertCmd(parsedCommand);
 }
 
+export async function convertcmd(parsedCommand) {
+  var myTableName = "test2"; //TO DO: get the active table name from the worksheet
+  const commandLength = parsedCommand.length;
+  if (parsedCommand.includes("table")) {
+    Excel.run(function (context) {
+      var sheet = context.workbook.worksheets.getActiveWorksheet();
+      if (Office.context.requirements.isSetSupported("ExcelApi", "1.2")) {
+        var range = sheet.getUsedRange();
+      }
+      sheet.activate();
+      // Convert the range to a table
+      var myTable = sheet.tables.add(range, true);
+      for (var i = 1; i < commandLength; i++) {
+        if (parsedCommand[i].includes("name")) {
+          myTable.name = parsedCommand[i + 1];
+          break;
+        } else myTable.name = myTableName;
+      }
+      return context.sync();
+    });
+  }
+}
+
 export async function sortCommand(parsedCommand) {
-  //var myTable = "test"; //TO DO: get the active table name from the worksheet if it exists, or get table name from command if user mentioned it
-  var commandLength = parsedCommand.length;
-  var RC = 1; //Row? 0 or Column? 1
+  var myTableName = "test"; //TO DO: get the active table name from the worksheet
+  const commandLength = parsedCommand.length;
   var clmName;
-  var rowName;
-  //checking if it's sort column or sort row, if row is not mentioned it assumes it's column
-  for (var k = 0; k < commandLength; k++) {
-    if (parsedCommand[k] == "row") {
-      RC = 0;
-    }
-  }
-  console.log("RC:", RC);
+  var headerName;
   //Get Column Name
-  if (RC == 1) {
-    for (var i = 0; i < commandLength; i++) {
-      if (parsedCommand[i].includes("col")) {
-        clmName = parsedCommand[i + 1];
-        //convert column Letter or Number to number
-        clmName = getColNumber(clmName);
-      }
-    }
-  } /* Get Row Name */ else {
-    for (var r = 0; r < commandLength; r++) {
-      if (parsedCommand[r].includes("row")) {
-        rowName = parsedCommand[i + 1];
-        console.log("rowName:", rowName);
-        //TO DO: handle case where row name is mentioned before the word row
-        //TO DO: handle all types of arguments
-      }
+  for (var i = 1; i < commandLength; i++) {
+    if (parsedCommand[i].includes("col")) {
+      clmName = parsedCommand[i + 1];
+      //convert column Letter or Number to number
+      clmName = getColNumber(clmName);
+      break;
+    } else {
+      clmName = await Excel.run(function (context) {
+        var sheet = context.workbook.worksheets.getActiveWorksheet();
+        var myTable = sheet.tables.getItem(myTableName);
+        myTable.columns.load("items");
+        return context.sync().then(function () {
+          for (var k = 0; k < 100; k++) {
+            headerName = String(myTable.columns.items[k].name).toLowerCase();
+            for (var j = 1; j < commandLength; j++) {
+              if (parsedCommand[j].includes(headerName)) {
+                return k;
+              }
+            }
+          }
+        });
+      });
     }
   }
-  //Check which order for sorting
+  console.log("clmName :", clmName);
+  //Check order of sorting
   var OrderAsc = true; //true is ascending
   for (var j = 0; j < commandLength; j++) {
-    /* Not sure if includes() will work */
     if (parsedCommand[j].includes("des")) {
       OrderAsc = false;
-      //TO DO: handle spelling mistakes
     }
   }
   console.log("Ascending?", OrderAsc);
-  //TO DO: Handle row sort
   //Column Sort
   Excel.run(function (context) {
     var sheet = context.workbook.worksheets.getActiveWorksheet();
-    var myTable = sheet.tables.getItem("test");
+    var myTable = sheet.tables.getItem(myTableName);
     var columnRange = myTable.getDataBodyRange();
     columnRange.sort.apply([
       {
-        key: Number(clmName), //change this to variable
-        //TO DO: what is myColumn is the name?
+        key: Number(clmName),
         ascending: OrderAsc,
       },
     ]);
@@ -176,9 +227,88 @@ export async function sortCommand(parsedCommand) {
   });
 }
 
+export async function fillcmd(parsedCommand) {
+  var myTableName = "test"; //TO DO: get the active table name from the worksheet
+  const commandLength = parsedCommand.length;
+  var clmName;
+  Excel.run(function (context) {
+    var sheet = context.workbook.worksheets.getActiveWorksheet();
+    var myTable = sheet.tables.getItem(myTableName);
+    //Get Column Name, Not handling header names
+    for (var i = 1; i < commandLength; i++) {
+      if (parsedCommand[i].includes("col")) {
+        clmName = parsedCommand[i + 1];
+        //convert column Letter or Number to number
+        clmName = getColNumber(clmName);
+        break;
+      }
+    }
+    if (parsedCommand.includes("transp") || parsedCommand.includes("no")) {
+      myTable.getDataBodyRange().format.fill.color = "white";
+      myTable.getHeaderRowRange().format.fill.color = "white";
+    } else {
+      if (parsedCommand[1].includes("head")) {
+        myTable.getHeaderRowRange().format.fill.color = parsedCommand[2];
+      } else if (parsedCommand[1].includes("table")) {
+        myTable.getDataBodyRange().format.fill.color = parsedCommand[2];
+        myTable.getHeaderRowRange().format.fill.color = parsedCommand[2];
+      } else if (parsedCommand[1].includes("col")) {
+        myTable.columns.getItemAt(clmName).getDataBodyRange().format.fill.color = parsedCommand[3];
+      } else if (parsedCommand[1].includes("row")) {
+        myTable.rows.getItemAt(Number(parsedCommand[2]) - 2).getRange().format.fill.color = parsedCommand[3];
+      } else if (parsedCommand[1].includes("cell")) {
+        sheet.getRange(parsedCommand[2].toUpperCase()).format.fill.color = parsedCommand[3];
+      }
+    }
+    return context.sync();
+  });
+}
+
+export async function clearCmd(parsedCommand) {
+  var myTableName = "test"; //TO DO: get the active table name from the worksheet
+  const commandLength = parsedCommand.length;
+  var clmName;
+  //Get Column Name, Not handling header names
+  for (var i = 1; i < commandLength; i++) {
+    if (parsedCommand[i].includes("col")) {
+      clmName = parsedCommand[i + 1];
+      //convert column Letter or Number to number
+      clmName = getColNumber(clmName);
+      break;
+    }
+  }
+  Excel.run(function (context) {
+    var sheet = context.workbook.worksheets.getActiveWorksheet();
+    var myTable = sheet.tables.getItem(myTableName);
+    var range;
+    if (parsedCommand[1].includes("table")) {
+      //get table range
+      myTable = sheet.tables.getItem(parsedCommand[2]);
+      range = myTable.getDataBodyRange();
+      range.clear();
+    } else if (parsedCommand[1].includes("col")) {
+      //get column range
+      range = myTable.columns.getItemAt(Number(clmName)).getDataBodyRange();
+      range.clear();
+    } else if (parsedCommand[1] == "row") {
+      //get row range
+      range = myTable.rows.getItemAt(Number(parsedCommand[2]) - 2).getRange();
+      range.clear();
+    } else if (parsedCommand[1] == "cell") {
+      //get cell range
+      range = sheet.getRange(parsedCommand[2].toUpperCase());
+      range.clear();
+    } else if (parsedCommand[1] == "sheet") {
+      range = sheet.getUsedRange(); //gets the smallest range that encompasses any cells in the worksheet that have a value or formatting assigned to them
+      range.clear();
+    }
+    return context.sync();
+  });
+}
+
 export async function swapCommand(parsedCommand) {
-  console.log("parsedCommand", parsedCommand);
-  var commandLength = parsedCommand.length;
+  var myTableName = "test"; //TO DO: get the active table name from the worksheet
+  const commandLength = parsedCommand.length;
   //TO DO: Handle case where it's not a Table
   var RC = 1; //Row? 0 or Column? 1
   var myColumn1;
@@ -191,66 +321,40 @@ export async function swapCommand(parsedCommand) {
       RC = 0;
     }
   }
-  console.log("RC:", RC);
+  console.log("Row=0 or Col=1?", RC);
   //Get Column Names
   if (RC == 1) {
-    for (var i = 0; i < commandLength; i++) {
-      if (parsedCommand[i] == "columns" || parsedCommand[i] == "column") {
+    for (var i = 1; i < commandLength; i++) {
+      if (parsedCommand[i].includes("col")) {
         myColumn1 = parsedCommand[i + 1];
-        if (parsedCommand[i + 2] == "and") myColumn2 = parsedCommand[i + 3];
+        if (parsedCommand[i + 2] == "and" || parsedCommand[i + 2] == "with") myColumn2 = parsedCommand[i + 3];
         else myColumn2 = parsedCommand[i + 2];
-        console.log("Columns: ", myColumn1, myColumn2);
-        //TO DO: handle case where first column name is mentioned before the word column
-        //TO DO: handle all types of arguments
+        break;
+      } else {
+        myColumn1 = parsedCommand[i];
+        if (parsedCommand[i + 1] == "and" || parsedCommand[i + 1] == "with") myColumn2 = parsedCommand[i + 2];
+        else myColumn2 = parsedCommand[i + 1];
+        break;
       }
     }
+    console.log("Columns: ", myColumn1, myColumn2);
   } /* Get Row Names */ else {
-    for (var r = 0; r < commandLength; r++) {
-      if (parsedCommand[r] == "rows" || parsedCommand[k] == "row") {
-        myRow1 = parsedCommand[i + 1];
-        if (parsedCommand[r + 2] == "and") myRow2 = parsedCommand[r + 3];
-        else myRow2 = parsedCommand[i + 2];
-        console.log("Rows: ", myRow1, myRow2);
-        //TO DO: handle case where row name is mentioned before the word row
-        //TO DO: handle all types of arguments
+    for (var r = 1; r < commandLength; r++) {
+      if (parsedCommand[r].includes("row")) {
+        myRow1 = parsedCommand[r + 1];
+        if (parsedCommand[r + 2] == "and" || parsedCommand[r + 2] == "with") myRow2 = parsedCommand[r + 3];
+        else myRow2 = parsedCommand[r + 2];
+        break;
       }
     }
   }
+  console.log("Rows: ", myRow1, myRow2);
   //Swap Columns
   Excel.run(function (context) {
     var sheet = context.workbook.worksheets.getActiveWorksheet();
-    var myTable = sheet.tables.getItem("test");
+    var myTable = sheet.tables.getItem(myTableName);
     var columnRange = myTable.getDataBodyRange();
     //either move the columns and store or traditional copy temp
-    return context.sync();
-  });
-}
-
-export async function clearCmd(parsedCommand) {
-  Excel.run(function (context) {
-    var sheet = context.workbook.worksheets.getActiveWorksheet();
-    var range;
-    if (parsedCommand[1] == "table") {
-      //get table range
-      var myTable = sheet.tables.getItem(parsedCommand[2]);
-      range = myTable.getDataBodyRange();
-      range.clear();
-    } else if (parsedCommand[1] == "column") {
-      //get column range
-      range = sheet.getRange("X");
-      range.clear();
-    } else if (parsedCommand[1] == "row") {
-      //get row range
-      range = sheet.getRange("X");
-      range.clear();
-    } else if (parsedCommand[1] == "cell") {
-      //get cell range
-      range = sheet.getRange("X");
-      range.clear();
-    } else if (parsedCommand[1] == "sheet") {
-      range = sheet.getUsedRange(); //gets the smallest range that encompasses any cells in the worksheet that have a value or formatting assigned to them
-      range.clear();
-    }
     return context.sync();
   });
 }
