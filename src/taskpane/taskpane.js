@@ -128,25 +128,21 @@ export async function executeCommand() {
   //deletes a table, column, or row
   else if (verb == "delete") deleteCmd(parsedCommand);
   //copy and paste cells, columns and rows
-  else if (verb == "copy" && parsedCommand.includes("paste")) copyPasteCmd(parsedCommand);
-  else if (verblast == "bold") boldCmd(parsedCommand);
+  else if ((verb == "copy" || verb == "move") && (parsedCommand.includes("paste") || parsedCommand.includes("to")))
+    copyPasteCmd(parsedCommand);
+  // adjust the size of columns or rows or tables according the the data
   else if (verb == "adjust") adjustCmd(parsedCommand);
-  //Group 3
-  else if (verb == "paste") pasteCmd(parsedCommand);
-  //Group 4
-  else if (verb == "revert") revertCmd(parsedCommand);
-  else if (verb == "save") saveCmd(parsedCommand);
-  //Group 5
-  else if (verb == "zoom") zoomCmd(parsedCommand);
-  else if (verb == "move" && (verbnext == "screen" || verbnext == "sheet")) moveScreenCmd(parsedCommand);
-  //Group 6
-  else if (verb == "sum" || verb == "add") sumCmd(parsedCommand);
-  else if (verb == "average") avgCmd(parsedCommand);
-  else if (verblast == "fraction") fractionCmd(parsedCommand);
-  else if (verblast == "decimal") decimalCmd(parsedCommand);
-  //Group 7
+  //hide row or column
   else if (verb == "hide") hideCmd(parsedCommand);
-  else if (verb == "insert") insertCmd(parsedCommand);
+  // else if (verb == "revert") revertCmd(parsedCommand);
+  // else if (verb == "save") saveCmd(parsedCommand);
+  // else if (verb == "zoom") zoomCmd(parsedCommand);
+  // else if (verb == "move" && (verbnext == "screen" || verbnext == "sheet")) moveScreenCmd(parsedCommand);
+  // else if (verb == "sum" || verb == "add") sumCmd(parsedCommand);
+  // else if (verb == "average") avgCmd(parsedCommand);
+  // else if (verblast == "fraction") fractionCmd(parsedCommand);
+  // else if (verblast == "decimal") decimalCmd(parsedCommand);
+  // else if (verb == "insert") insertCmd(parsedCommand);
 }
 
 //DONE
@@ -231,6 +227,7 @@ export async function fillcmd(parsedCommand) {
   var myTableName = "test"; //TO DO: get the active table name from the worksheet
   const commandLength = parsedCommand.length;
   var clmName;
+  var rangeArea;
   Excel.run(function (context) {
     var sheet = context.workbook.worksheets.getActiveWorksheet();
     var myTable = sheet.tables.getItem(myTableName);
@@ -257,8 +254,16 @@ export async function fillcmd(parsedCommand) {
         myTable.rows.getItemAt(Number(parsedCommand[2]) - 2).getRange().format.fill.color = parsedCommand[3];
       } else if (parsedCommand[1].includes("cell")) {
         sheet.getRange(parsedCommand[2].toUpperCase()).format.fill.color = parsedCommand[3];
+      } else {
+        rangeArea = parsedCommand[1];
+        var foundRanges = sheet.findAll(rangeArea, {
+          completeMatch: false, // findAll will match the whole cell value
+          matchCase: false, // findAll will not match case
+        });
+        foundRanges.format.fill.color = parsedCommand[2];
       }
     }
+    onWorksheetChanged(sheet);
     return context.sync();
   });
 }
@@ -299,6 +304,9 @@ export async function clearCmd(parsedCommand) {
       range.clear();
     } else if (parsedCommand[1] == "sheet") {
       range = sheet.getUsedRange(); //gets the smallest range that encompasses any cells in the worksheet that have a value or formatting assigned to them
+      range.clear();
+    } else {
+      range = sheet.getRange(parsedCommand[1].toUpperCase());
       range.clear();
     }
     return context.sync();
@@ -356,7 +364,7 @@ export async function swapCommand(parsedCommand) {
     console.log("Rows: ", myRow1, myRow2);
   }
 
-  //Swap Columns
+  //Columns
   //get range of column 1
   var range1 = await Excel.run(function (context) {
     var sheet = context.workbook.worksheets.getActiveWorksheet();
@@ -395,7 +403,7 @@ export async function swapCommand(parsedCommand) {
     return context.sync();
   });
 
-  //Swap Rows
+  //Rows
   //get range of row 1
   var rrange1 = await Excel.run(function (context) {
     var sheet = context.workbook.worksheets.getActiveWorksheet();
@@ -425,7 +433,7 @@ export async function swapCommand(parsedCommand) {
   });
   console.log("range 2 row", rrange2);
   var rowtemp = "AAA1000:CCC1000";
-  //swap columns
+  //swap rows
   Excel.run(function (context) {
     var sheet = context.workbook.worksheets.getActiveWorksheet();
     sheet.getRange(rrange1).moveTo("AAA1000");
@@ -482,6 +490,121 @@ export async function deleteCmd(parsedCommand) {
     } else if (parsedCommand[1] == "sheet") {
       range = sheet.getUsedRange(); //gets the smallest range that encompasses any cells in the worksheet that have a value or formatting assigned to them
       range.clear();
+    }
+    return context.sync();
+  });
+}
+
+export async function copyPasteCmd(parsedCommand) {
+  const commandLength = parsedCommand.length;
+  var myCell;
+  var myRange;
+
+  if (parsedCommand[1] == "range" || parsedCommand[1] == "cell") {
+    myRange = parsedCommand[2];
+  } else myRange = parsedCommand[1];
+  myCell = parsedCommand[commandLength - 1];
+
+  Excel.run(function (context) {
+    var sheet = context.workbook.worksheets.getActiveWorksheet();
+    if (parsedCommand[0] == "move") sheet.getRange(myRange).moveTo(myCell);
+    else sheet.getRange(myCell).copyFrom(myRange);
+    return context.sync();
+  });
+}
+
+// This function would be used as an event handler for the Worksheet.onChanged event.
+function onWorksheetChanged(eventArgs) {
+  Excel.run(function (context) {
+    var details = eventArgs.details;
+    var address = eventArgs.address;
+
+    // Print the before and after types and values to the console.
+    console.log(
+      `Change at ${address}: was ${details.valueBefore}(${details.valueTypeBefore}),` +
+        +` now is ${details.valueAfter}(${details.valueTypeAfter})`
+    );
+    return context.sync();
+  });
+}
+
+export async function adjustCmd(parsedCommand) {
+  var myTableName = "test"; //TO DO: get the active table name from the worksheet
+  const commandLength = parsedCommand.length;
+  var clmName;
+  //Get Column Name, Not handling header names
+  for (var i = 1; i < commandLength; i++) {
+    if (parsedCommand[i].includes("col")) {
+      clmName = parsedCommand[i + 1];
+      //convert column Letter or Number to number
+      clmName = getColNumber(clmName);
+      break;
+    }
+  }
+  Excel.run(function (context) {
+    var sheet = context.workbook.worksheets.getActiveWorksheet();
+    var myTable = sheet.tables.getItem(myTableName);
+    var range;
+    if (parsedCommand[1].includes("table")) {
+      //get table range
+      myTable = sheet.tables.getItem(parsedCommand[2]);
+      range = myTable.getDataBodyRange();
+      range.format.autofitColumns();
+      range.format.autofitRows();
+    } else if (parsedCommand[1].includes("col")) {
+      //get column range
+      range = myTable.columns.getItemAt(Number(clmName)).getDataBodyRange();
+      range.format.autofitColumns();
+    } else if (parsedCommand[1] == "row") {
+      //get row range
+      range = myTable.rows.getItemAt(Number(parsedCommand[2]) - 2).getRange();
+      range.format.autofitRows();
+    } else if (parsedCommand[1] == "cell") {
+      //get cell range
+      range = sheet.getRange(parsedCommand[2].toUpperCase());
+      range.format.autofitColumns();
+      range.format.autofitRows();
+    } else if (parsedCommand[1] == "sheet") {
+      range = sheet.getUsedRange(); //gets the smallest range that encompasses any cells in the worksheet that have a value or formatting assigned to them
+      range.format.autofitColumns();
+      range.format.autofitRows();
+    } else {
+      range = sheet.getRange(parsedCommand[1].toUpperCase());
+      range.format.autofitColumns();
+      range.format.autofitRows();
+    }
+    return context.sync();
+  });
+}
+
+export async function hideCmd(parsedCommand) {
+  var myTableName = "test"; //TO DO: get the active table name from the worksheet
+  const commandLength = parsedCommand.length;
+  var clmName;
+  //Get Column Name, Not handling header names
+  for (var i = 1; i < commandLength; i++) {
+    if (parsedCommand[i].includes("col")) {
+      clmName = parsedCommand[i + 1];
+      //convert column Letter or Number to number
+      clmName = getColNumber(clmName);
+      break;
+    }
+  }
+  Excel.run(function (context) {
+    var sheet = context.workbook.worksheets.getActiveWorksheet();
+    var myTable = sheet.tables.getItem(myTableName);
+    var range;
+    if (parsedCommand[1].includes("col")) {
+      //get column range
+      range = myTable.columns.getItemAt(Number(clmName)).getRange();
+      range.hidden("true");
+    } else if (parsedCommand[1] == "row") {
+      //get row range
+      range = myTable.rows.getItemAt(Number(parsedCommand[2]) - 2).getRange();
+      range.hidden("true");
+    } else {
+      range = sheet.getRange(parsedCommand[1].toUpperCase());
+      range.hidden("true");
     }
     return context.sync();
   });
